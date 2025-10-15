@@ -130,6 +130,8 @@ dist
 
 # IDEs
 .vscode/
+.specify/
+prompts/
 .idea/
 *.swp
 *.swo
