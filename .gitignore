@@ -60,7 +60,6 @@ htmlcov/
 *.pkl
 *.joblib
 *.pt
-*.pth
 *.onnx
 models/trained/*
 !models/trained/.gitkeep
