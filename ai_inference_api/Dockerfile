@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bullseye
 
 WORKDIR /app
 
@@ -10,16 +10,20 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
   UVICORN_WORKERS=1
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN set -eux; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends \
+    build-essential \
     gcc \
     g++ \
     libgomp1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
-    libxrender-dev \
+    libxrender1 \
     libgl1-mesa-glx \
-    && rm -rf /var/lib/apt/lists/*
+  ; \
+  rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
