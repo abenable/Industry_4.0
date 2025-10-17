@@ -11,7 +11,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Install system dependencies
 RUN set -eux; \
-  apt-get update; \
+  # Configure APT to retry fetching indexes/files on transient network/mirror errors
+  echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries; \
+  apt-get update -o Acquire::Retries=3; \
   apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
@@ -22,8 +24,13 @@ RUN set -eux; \
     libxext6 \
     libxrender1 \
     libgl1-mesa-glx \
-  ; \
-  rm -rf /var/lib/apt/lists/*
+  || ( \
+    echo "apt install failed, trying apt-get update && apt-get install --fix-missing"; \
+    apt-get update -o Acquire::Retries=3; \
+    apt-get install -y --no-install-recommends --fix-missing \
+      build-essential gcc g++ libgomp1 libglib2.0-0 libsm6 libxext6 libxrender1 libgl1-mesa-glx; \
+  ); \
+  rm -rf /var/lib/apt/lists/* /etc/apt/apt.conf.d/80-retries
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
