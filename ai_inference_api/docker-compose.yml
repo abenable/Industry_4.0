@@ -11,8 +11,10 @@ services:
       - .env
     environment:
       UVICORN_WORKERS: ${UVICORN_WORKERS:-2}
+      HOST: 0.0.0.0
+      PORT: 8000
     ports:
-      - "${PORT:-8002}:8000"
+      - "${PORT:-8000}:8000"
     volumes:
       - ./models:/app/models:ro
     restart: unless-stopped
@@ -22,7 +24,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import requests; requests.get('http://localhost:8002/health')",
+          "import requests; requests.get('http://localhost:8000/health')",
         ]
       interval: 30s
       timeout: 10s

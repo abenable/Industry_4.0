@@ -16,11 +16,9 @@ class Settings(BaseSettings):
     DEBUG: bool = False
 
     # CORS settings
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:5000",
-        "http://localhost:5173",
-    ]
+    ALLOWED_ORIGINS: str = (
+        "http://localhost:3000,http://localhost:5000,http://localhost:5173"
+    )
 
     # Model paths
     MODEL_DIR: str = "models"
@@ -37,6 +35,12 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+
+    def get_allowed_origins(self) -> List[str]:
+        """Parse ALLOWED_ORIGINS string into list"""
+        if isinstance(self.ALLOWED_ORIGINS, str):
+            return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]
+        return self.ALLOWED_ORIGINS
 
 
 settings = Settings()
