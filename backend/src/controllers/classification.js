@@ -3,8 +3,7 @@ import logger from '../utils/logger.js';
 import { uploadToS3 } from '../utils/s3.js';
 import genAIService from '../utils/genai.js';
 import { prisma } from '../index.js';
-import axios from 'axios';
-import FormData from 'form-data';
+import inferenceClient from '../utils/inference-client.js';
 
 /**
  * Handle image upload and classification workflow
@@ -71,7 +70,15 @@ export const classifyImage = async (req, res, next) => {
 
         // Step 3: Send image to AI inference API
         logger.info('Sending image to AI inference API...');
-        const classificationResult = await sendToInferenceAPI(req.file.buffer, req.file.originalname);
+
+        // Determine model based on crop type
+        const modelName = cropType?.toLowerCase() === 'maize' ? 'maize' : 'bean';
+
+        const classificationResult = await inferenceClient.predict(
+            req.file.buffer,
+            req.file.originalname,
+            modelName
+        );
 
         logger.info(`Classification result received: ${JSON.stringify(classificationResult)}`);
 
@@ -138,53 +145,46 @@ export const classifyImage = async (req, res, next) => {
 };
 
 /**
- * Send image to AI inference API for classification
- * @param {Buffer} imageBuffer - Image file buffer
- * @param {string} originalName - Original filename
- * @returns {Promise<Object>} - Classification result
+ * Health check for inference API connection
  */
-async function sendToInferenceAPI(imageBuffer, originalName) {
+export const checkInferenceHealth = async (req, res, next) => {
     try {
-        const inferenceUrl = process.env.AI_INFERENCE_API_URL || 'http://localhost:8000';
-        const timeout = parseInt(process.env.AI_INFERENCE_TIMEOUT) || 30000;
+        const isHealthy = await inferenceClient.healthCheck();
 
-        // Create form data
-        const formData = new FormData();
-        formData.append('file', imageBuffer, {
-            filename: originalName,
-            contentType: 'image/jpeg',
-        });
-
-        // Send request to inference API
-        const response = await axios.post(`${inferenceUrl}/predict`, formData, {
-            headers: {
-                ...formData.getHeaders(),
-            },
-            timeout: timeout,
-            maxContentLength: Infinity,
-            maxBodyLength: Infinity,
-        });
-
-        if (response.status !== 200) {
-            throw new Error(`Inference API returned status ${response.status}`);
+        if (isHealthy) {
+            const info = await inferenceClient.getInfo();
+            res.status(200).json({
+                status: 'success',
+                message: 'AI inference API is connected and healthy',
+                data: info
+            });
+        } else {
+            res.status(503).json({
+                status: 'error',
+                message: 'AI inference API is not responding'
+            });
         }
-
-        return response.data;
-
     } catch (error) {
-        if (error.code === 'ECONNREFUSED') {
-            logger.error('Cannot connect to AI inference API. Is it running?');
-            throw new Error('AI inference service is unavailable. Please ensure the AI model server is running.');
-        }
-
-        if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
-            throw new Error('AI inference request timed out. The image may be too large or the server is busy.');
-        }
-
-        logger.error(`Inference API error: ${error.message}`);
-        throw error;
+        logger.error(`Inference health check error: ${error.message}`);
+        next(new ApiError(503, 'Failed to connect to AI inference API'));
     }
-}
+};
+
+/**
+ * Get available models from inference API
+ */
+export const getAvailableModels = async (req, res, next) => {
+    try {
+        const models = await inferenceClient.getModels();
+        res.status(200).json({
+            status: 'success',
+            data: models
+        });
+    } catch (error) {
+        logger.error(`Get models error: ${error.message}`);
+        next(new ApiError(500, 'Failed to get available models'));
+    }
+};
 
 /**
  * Get user's classification history

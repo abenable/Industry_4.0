@@ -10,6 +10,7 @@ import { ErrorHandler } from "./controllers/error.js";
 import logger from "./utils/logger.js";
 import router from "./controllers/routes.js";
 import { PrismaClient } from "@prisma/client";
+import inferenceClient from "./utils/inference-client.js";
 
 dotenv.config();
 
@@ -79,6 +80,16 @@ app.listen(port, async () => {
     try {
       await prisma.$connect();
       logger.info("Connected to the database.");
+
+      // Check inference API connection
+      const isInferenceHealthy = await inferenceClient.healthCheck();
+      if (isInferenceHealthy) {
+        const inferenceInfo = await inferenceClient.getInfo();
+        logger.info(`AI Inference API connected: ${inferenceInfo.message}`);
+        logger.info(`Available models: ${inferenceInfo.available_models?.join(', ')}`);
+      } else {
+        logger.warn("AI Inference API is not responding. Image classification will not work until it's available.");
+      }
     } catch (error) {
       logger.error(error);
     } finally {

@@ -5,7 +5,9 @@ import {
     getUserHistory,
     getClassificationById,
     getUserStats,
-    deleteClassification
+    deleteClassification,
+    checkInferenceHealth,
+    getAvailableModels
 } from '../controllers/classification.js';
 
 const router = Router();
@@ -49,5 +51,19 @@ router.get('/stats', getUserStats);
  * @body    { email: string }
  */
 router.delete('/classification/:id', deleteClassification);
+
+/**
+ * @route   GET /api/inference/health
+ * @desc    Check AI inference API health
+ * @access  Public
+ */
+router.get('/inference/health', checkInferenceHealth);
+
+/**
+ * @route   GET /api/inference/models
+ * @desc    Get available AI models
+ * @access  Public
+ */
+router.get('/inference/models', getAvailableModels);
 
 export default router;
