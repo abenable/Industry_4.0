@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  api:
+    image: agriv-inference-api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agriv-inference-api
+    env_file:
+      - .env
+    environment:
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-2}
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - ./models:/app/models:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
