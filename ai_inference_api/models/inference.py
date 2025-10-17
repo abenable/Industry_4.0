@@ -42,7 +42,7 @@ class ModelInference:
             "maize": {
                 "path": "models/maize_model.onnx",
                 "input_size": (224, 224),
-                "classes": ["blight", "common_rust", "gray_leaf_spot", "healthy"],
+                "classes": ["Healthy", "MSV", "MLB"],
             },
         }
 
