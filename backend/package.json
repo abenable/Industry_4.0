@@ -1,0 +1,43 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "description": "API for all my applications",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev --name init --preview-feature",
+    "prisma:studio": "prisma studio"
+  },
+  "author": "abenable",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.908.0",
+    "@aws-sdk/s3-request-presigner": "^3.908.0",
+    "@google/generative-ai": "^0.21.0",
+    "@prisma/client": "^6.17.1",
+    "axios": "^1.11.0",
+    "body-parser": "^2.2.0",
+    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "form-data": "^4.0.1",
+    "helmet": "^8.1.0",
+    "hpp": "^0.2.3",
+    "mailtrap": "^4.3.0",
+    "multer": "^2.0.2",
+    "nodemailer": "^6.9.4",
+    "openai": "^4.73.0",
+    "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^5.0.0",
+    "winston-timestamp-colorize": "^1.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10",
+    "prisma": "^6.17.1"
+  }
+}

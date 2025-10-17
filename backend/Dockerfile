@@ -1,21 +1,34 @@
-FROM python:3.11-slim
+# Use the official Node.js 22 LTS image
+FROM node:22-alpine
 
+# Install curl for healthcheck
+RUN apk add --no-cache curl
+
+# Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
+# Copy package files
+COPY package*.json ./
+COPY prisma ./prisma/
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install dependencies
+RUN npm ci --only=production
 
-# Copy application code
+# Copy source code
 COPY . .
 
-# Expose port
-EXPOSE 8000
+# Generate Prisma client
+RUN npx prisma generate
 
-# Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Create logs directory
+RUN mkdir -p logs
+
+# Expose port
+EXPOSE 5000
+
+# Health check (fixed port to match EXPOSE)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:5000/ || exit 1
+
+# Start the application
+CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
