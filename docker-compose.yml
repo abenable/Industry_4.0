@@ -36,8 +36,6 @@ services:
     container_name: agriv-ai-inference
     ports:
       - "8001:8000"
-    volumes:
-      - ./ai_inference_api/models:/app/models:ro
     env_file:
       - ./ai_inference_api/.env
     environment:
