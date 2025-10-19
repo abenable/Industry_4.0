@@ -40,9 +40,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create models directory if it doesn't exist
-RUN mkdir -p models
-
 # Expose port
 EXPOSE 8000
 
