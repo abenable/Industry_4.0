@@ -6,7 +6,7 @@ import logger from './logger.js';
  */
 class GenAIService {
     constructor() {
-        const apiKey = process.env.GEMINI_API_KEY || 'AIzaSyAYPQ5kmCy6umipmwxAOTO_umEP8OgsxR8';
+        const apiKey = process.env.GEMINI_API_KEY;
 
         if (!apiKey) {
             logger.warn('GEMINI_API_KEY not configured. GenAI features will be disabled.');
