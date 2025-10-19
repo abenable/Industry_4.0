@@ -56,17 +56,17 @@ export const classifyImage = async (req, res, next) => {
         }
 
         // Step 2: Upload image to S3
-        logger.info('Uploading image to S3...');
-        const s3Result = await uploadToS3(
-            req.file.buffer,
-            req.file.originalname,
-            req.file.mimetype,
-            'crop-images'
-        );
-        uploadedImageUrl = s3Result.url;
-        uploadedImageKey = s3Result.key;
+        logger.info('Skipping S3 upload to test inference flow');
+        // const s3Result = await uploadToS3(
+        //     req.file.buffer,
+        //     req.file.originalname,
+        //     req.file.mimetype,
+        //     'crop-images'
+        // );
+        // uploadedImageUrl = s3Result.url;
+        // uploadedImageKey = s3Result.key;
 
-        logger.info(`Image uploaded to S3: ${uploadedImageUrl}`);
+        // logger.info(`Image uploaded to S3: ${uploadedImageUrl}`);
 
         // Step 3: Send image to AI inference API
         logger.info('Sending image to AI inference API...');

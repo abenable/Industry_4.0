@@ -42,7 +42,7 @@ class ModelInference:
             "maize": {
                 "path": "models/maize_model.onnx",
                 "input_size": (224, 224),
-                "classes": ["Healthy", "MSV", "MLB"],
+                "classes": ["Healthy", "MLB", "MSV"],
             },
         }
 
@@ -70,6 +70,7 @@ class ModelInference:
                 input_shape = session.get_inputs()[0].shape
                 output_name = session.get_outputs()[0].name
                 output_shape = session.get_outputs()[0].shape
+                channels_first = self._infer_channels_first(input_shape)
 
                 self.model_metadata[model_name] = {
                     "input_name": input_name,
@@ -79,6 +80,7 @@ class ModelInference:
                     "input_size": config["input_size"],
                     "classes": config["classes"],
                     "num_classes": len(config["classes"]),
+                    "channels_first": channels_first,
                 }
 
                 logger.info(f"✅ Loaded {model_name} model from {model_path}")
@@ -119,12 +121,24 @@ class ModelInference:
             input_name = metadata["input_name"]
             output_name = metadata["output_name"]
 
-            # Prepare input - ensure correct shape
-            # ONNX models often expect (batch, channels, height, width)
-            # Convert from (batch, height, width, channels) if needed
-            if len(image.shape) == 4 and image.shape[-1] == 3:
-                # Transpose from NHWC to NCHW
-                image = np.transpose(image, (0, 3, 1, 2))
+            # Prepare input - align layout with model expectations
+            channels_first = metadata.get("channels_first")
+
+            if channels_first is None:
+                channels_first = self._infer_channels_first(metadata.get("input_shape"))
+
+            if len(image.shape) == 4:
+                height = image.shape[1]
+                channels = image.shape[-1]
+
+                if channels_first:
+                    # Convert from NHWC to NCHW if necessary
+                    if channels in (1, 3) and height != channels:
+                        image = np.transpose(image, (0, 3, 1, 2))
+                else:
+                    # Convert from NCHW to NHWC if necessary
+                    if image.shape[1] in (1, 3) and channels not in (1, 3):
+                        image = np.transpose(image, (0, 2, 3, 1))
 
             # Ensure float32
             image = image.astype(np.float32)
@@ -198,6 +212,7 @@ class ModelInference:
                 "input_size": meta["input_size"],
                 "classes": meta["classes"],
                 "num_classes": meta["num_classes"],
+                "channels_first": meta.get("channels_first"),
             }
             for name, meta in self.model_metadata.items()
         }
@@ -213,6 +228,32 @@ class ModelInference:
         """Apply softmax to convert logits to probabilities"""
         exp_x = np.exp(x - np.max(x))
         return exp_x / exp_x.sum()
+
+    @staticmethod
+    def _dim_to_int(dim: Any) -> Optional[int]:
+        """Extract integer value from ONNX dimension descriptor"""
+        if isinstance(dim, int):
+            return dim
+        if hasattr(dim, "dim_value") and isinstance(dim.dim_value, int):
+            return int(dim.dim_value)
+        return None
+
+    @classmethod
+    def _infer_channels_first(cls, shape: Optional[Tuple[Any, ...]]) -> Optional[bool]:
+        """Infer whether the model expects channels-first tensors"""
+        if not isinstance(shape, (list, tuple)) or len(shape) != 4:
+            return None
+
+        second_dim = cls._dim_to_int(shape[1])
+        last_dim = cls._dim_to_int(shape[-1])
+
+        if second_dim in (1, 3) and last_dim not in (1, 3):
+            return True
+        if last_dim in (1, 3) and second_dim not in (1, 3):
+            return False
+
+        # Ambiguous layout; return None so caller can decide based on runtime input
+        return None
 
     def cleanup(self):
         """Cleanup resources"""

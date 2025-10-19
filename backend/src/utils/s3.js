@@ -4,18 +4,50 @@ import {
     PutObjectCommand,
     S3Client,
 } from "@aws-sdk/client-s3";
+import { fromEnv } from "@aws-sdk/credential-providers";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from 'crypto';
 import logger from './logger.js';
 
 // Initialize S3 Client
+const resolveEndpoint = () => {
+    const endpoint = process.env.S3_ENDPOINT;
+
+    if (!endpoint) {
+        throw new Error("S3_ENDPOINT environment variable is not set.");
+    }
+
+    return endpoint;
+};
+
+const resolveBucket = () => {
+    const bucket = process.env.S3_BUCKET_NAME;
+
+    if (!bucket) {
+        throw new Error("S3_BUCKET_NAME environment variable is not set.");
+    }
+
+    return bucket;
+};
+
+const resolveRegion = () => process.env.AWS_REGION || "auto";
+
+const buildEndpointResolver = () => async () => {
+    const endpointUrl = new URL(resolveEndpoint());
+
+    return {
+        protocol: endpointUrl.protocol.replace(/:$/, ""),
+        hostname: endpointUrl.hostname,
+        path: endpointUrl.pathname === "/" ? undefined : endpointUrl.pathname,
+        port: endpointUrl.port ? Number(endpointUrl.port) : undefined,
+    };
+};
+
 const s3 = new S3Client({
-    credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-    region: process.env.AWS_REGION || "auto",
-    endpoint: process.env.S3_ENDPOINT,
+    credentials: fromEnv(),
+    region: resolveRegion(),
+    endpoint: buildEndpointResolver(),
+    forcePathStyle: true,
 });
 
 /**
@@ -34,8 +66,10 @@ export const uploadToS3 = async (fileBuffer, originalName, mimetype, folder = 'i
         const key = `${folder}/${randomName}.${extension}`;
 
         // Upload to S3
+        const bucket = resolveBucket();
+
         const command = new PutObjectCommand({
-            Bucket: process.env.S3_BUCKET_NAME,
+            Bucket: bucket,
             Key: key,
             Body: fileBuffer,
             ContentType: mimetype,
@@ -44,7 +78,8 @@ export const uploadToS3 = async (fileBuffer, originalName, mimetype, folder = 'i
         await s3.send(command);
 
         // Construct the public URL
-        const url = `${process.env.S3_ENDPOINT}/${process.env.S3_BUCKET_NAME}/${key}`;
+        const basePublicUrl = process.env.S3_PUBLIC_BASE_URL || `${resolveEndpoint()}/${bucket}`;
+        const url = `${basePublicUrl}/${key}`;
 
         logger.info(`File uploaded successfully to S3: ${key}`);
 
@@ -62,8 +97,10 @@ export const uploadToS3 = async (fileBuffer, originalName, mimetype, folder = 'i
  */
 export const deleteFromS3 = async (key) => {
     try {
+        const bucket = resolveBucket();
+
         const command = new DeleteObjectCommand({
-            Bucket: process.env.S3_BUCKET_NAME,
+            Bucket: bucket,
             Key: key,
         });
 
@@ -83,8 +120,10 @@ export const deleteFromS3 = async (key) => {
  */
 export const getSignedS3Url = async (key, expiresIn = 3600) => {
     try {
+        const bucket = resolveBucket();
+
         const command = new GetObjectCommand({
-            Bucket: process.env.S3_BUCKET_NAME,
+            Bucket: bucket,
             Key: key,
         });
 

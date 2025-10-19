@@ -45,6 +45,7 @@ def preprocess_image(
         # Normalize if requested
         if normalize:
             img_array = img_array / 255.0
+            img_array = (img_array - 0.5) / 0.5
 
         # Add batch dimension (1, height, width, channels)
         img_array = np.expand_dims(img_array, axis=0)
@@ -94,6 +95,7 @@ def preprocess_image_cv2(
         # Normalize
         if normalize:
             img_array = img_array / 255.0
+            img_array = (img_array - 0.5) / 0.5
 
         # Add batch dimension
         img_array = np.expand_dims(img_array, axis=0)

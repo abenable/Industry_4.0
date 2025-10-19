@@ -2,33 +2,23 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import logger from './logger.js';
 
 /**
- * GenAI Service for getting AI-powered insights
- * Supports Google Gemini and OpenAI
+ * GenAI Service for getting AI-powered insights using Gemini 2.5 Flash
  */
 class GenAIService {
     constructor() {
-        this.provider = process.env.GENAI_PROVIDER || 'gemini';
+        const apiKey = process.env.GEMINI_API_KEY || 'AIzaSyAYPQ5kmCy6umipmwxAOTO_umEP8OgsxR8';
 
-        if (this.provider === 'gemini') {
-            if (!process.env.GEMINI_API_KEY) {
-                logger.warn('GEMINI_API_KEY not configured. GenAI features will be disabled.');
-                this.client = null;
-            } else {
-                this.client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-                this.model = this.client.getGenerativeModel({
-                    model: process.env.GENAI_MODEL || 'gemini-1.5-flash'
-                });
-            }
-        } else if (this.provider === 'openai') {
-            if (!process.env.OPENAI_API_KEY) {
-                logger.warn('OPENAI_API_KEY not configured. GenAI features will be disabled.');
-                this.client = null;
-            } else {
-                this.client = new OpenAI({
-                    apiKey: process.env.OPENAI_API_KEY
-                });
-            }
+        if (!apiKey) {
+            logger.warn('GEMINI_API_KEY not configured. GenAI features will be disabled.');
+            this.client = null;
+            this.model = null;
+            return;
         }
+
+        this.client = new GoogleGenerativeAI(apiKey);
+        this.model = this.client.getGenerativeModel({
+            model: process.env.GENAI_MODEL || 'gemini-2.5-flash'
+        });
     }
 
     /**
@@ -45,12 +35,8 @@ class GenAIService {
 
         try {
             const prompt = this.buildPrompt(classificationResult, cropType);
-
-            if (this.provider === 'gemini') {
-                return await this.generateWithGemini(prompt);
-            } else if (this.provider === 'openai') {
-                return await this.generateWithOpenAI(prompt);
-            }
+            const output = await this.generateWithGemini(prompt);
+            return this.formatGeminiResponse(output);
         } catch (error) {
             logger.error(`GenAI generation error: ${error.message}`);
             // Return fallback response on error
@@ -67,28 +53,41 @@ class GenAIService {
     buildPrompt(classificationResult, cropType) {
         const { disease, confidence, predicted_class, probabilities } = classificationResult;
 
-        let prompt = `You are an agricultural expert AI assistant. Analyze the following plant disease classification result and provide actionable insights.\n\n`;
-        prompt += `Crop Type: ${cropType}\n`;
-        prompt += `Detected Disease: ${disease || predicted_class || 'Unknown'}\n`;
-        prompt += `Confidence Level: ${confidence ? (confidence * 100).toFixed(2) : 'N/A'}%\n`;
+        const detectedDisease = disease || predicted_class || 'Unknown';
+        const confidencePercent = confidence ? (confidence * 100).toFixed(2) : 'N/A';
+        const probabilityLines = probabilities && typeof probabilities === 'object'
+            ? Object.entries(probabilities)
+                .map(([label, value]) => `- ${label}: ${(value * 100).toFixed(2)}%`)
+                .join('\n')
+            : '';
 
-        if (probabilities && typeof probabilities === 'object') {
-            prompt += `\nProbability Distribution:\n`;
-            Object.entries(probabilities).forEach(([key, value]) => {
-                prompt += `  - ${key}: ${(value * 100).toFixed(2)}%\n`;
-            });
-        }
-
-        prompt += `\nPlease provide:\n`;
-        prompt += `1. A brief description of this disease/condition\n`;
-        prompt += `2. Common symptoms to look for\n`;
-        prompt += `3. Recommended treatment methods (organic and chemical options)\n`;
-        prompt += `4. Prevention strategies\n`;
-        prompt += `5. Expected impact on yield if left untreated\n`;
-        prompt += `6. Best practices for managing this condition\n\n`;
-        prompt += `Format your response in a clear, structured manner suitable for farmers. Use simple language and be practical.`;
-
-        return prompt;
+        return [
+            'You are an agricultural expert AI assistant.',
+            'You will receive a plant disease classification result and must respond in concise, field-ready markdown.',
+            '',
+            `Crop type: ${cropType}`,
+            `Detected disease: ${detectedDisease}`,
+            `Confidence: ${confidencePercent}%`,
+            probabilityLines ? `Class probabilities:\n${probabilityLines}` : '',
+            '',
+            'Your response must follow this structure using markdown headings:',
+            '# Alert Summary',
+            '## Disease Overview',
+            '## Early Symptoms',
+            '## Immediate Actions',
+            '## Chemical Control',
+            '## Organic & Cultural Practices',
+            '## Prevention & Monitoring',
+            '## Yield Impact',
+            '## Follow-Up Checklist',
+            '',
+            'Rules:',
+            '- Keep sentences short and direct.',
+            '- Use bullet lists under each section; no numbered lists.',
+            '- Do not repeat the same action in multiple sections.',
+            '- If confidence is below 70%, highlight uncertainty in the summary and suggest validation.',
+            '- If a section lacks reliable information, write “Data unavailable – consult a local extension officer.”',
+        ].filter(Boolean).join('\n');
     }
 
     /**
@@ -100,14 +99,47 @@ class GenAIService {
         try {
             const result = await this.model.generateContent(prompt);
             const response = await result.response;
-            const text = response.text();
-
-            logger.info('Successfully generated insights with Gemini');
-            return text;
+            return response.text();
         } catch (error) {
             logger.error(`Gemini API error: ${error.message}`);
             throw error;
         }
+    }
+
+    formatGeminiResponse(rawText) {
+        if (!rawText || typeof rawText !== 'string') {
+            return 'AI insights are currently unavailable.';
+        }
+
+        let formatted = rawText.trim();
+
+        formatted = formatted.replace(/\n{3,}/g, '\n\n');
+        formatted = formatted.replace(/\*{3,}/g, '**');
+
+        const requiredSections = [
+            '# Alert Summary',
+            '## Disease Overview',
+            '## Early Symptoms',
+            '## Immediate Actions',
+            '## Chemical Control',
+            '## Organic & Cultural Practices',
+            '## Prevention & Monitoring',
+            '## Yield Impact',
+            '## Follow-Up Checklist',
+        ];
+
+        requiredSections.forEach((section) => {
+            const sectionRegex = new RegExp(`^${section}$`, 'm');
+            if (!sectionRegex.test(formatted)) {
+                formatted += `\n\n${section}\n- Data unavailable – consult a local extension officer.`;
+            }
+        });
+
+        if (!formatted.startsWith('#')) {
+            formatted = `# Alert Summary\n\n${formatted}`;
+        }
+
+        return formatted;
     }
 
     /**
