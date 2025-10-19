@@ -1,51 +1,42 @@
-FROM python:3.11-slim-bullseye
+# Use Python 3.11 slim image for smaller size
+FROM python:3.11-slim
 
+# Set working directory
 WORKDIR /app
 
-# Runtime environment tweaks for production
-ENV PYTHONDONTWRITEBYTECODE=1 \
-  PYTHONUNBUFFERED=1 \
-  UVICORN_HOST=0.0.0.0 \
-  UVICORN_PORT=8000 \
-  UVICORN_WORKERS=1
-
-# Install system dependencies
-RUN set -eux; \
-  # Configure APT to retry fetching indexes/files on transient network/mirror errors
-  echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries; \
-  apt-get update -o Acquire::Retries=3; \
-  apt-get install -y --no-install-recommends \
-    build-essential \
-    gcc \
-    g++ \
-    curl \
-    libgomp1 \
+# Install system dependencies for OpenCV and other libraries
+RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
-    libxrender1 \
-    libgl1-mesa-glx \
-  || ( \
-    echo "apt install failed, trying apt-get update && apt-get install --fix-missing"; \
-    apt-get update -o Acquire::Retries=3; \
-    apt-get install -y --no-install-recommends --fix-missing \
-      build-essential gcc g++ curl libgomp1 libglib2.0-0 libsm6 libxext6 libxrender1 libgl1-mesa-glx; \
-  ); \
-  rm -rf /var/lib/apt/lists/* /etc/apt/apt.conf.d/80-retries
+    libxrender-dev \
+    libgomp1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
+# Copy requirements first for better caching
 COPY requirements.txt .
+
+# Install Python dependencies
+# Use --no-cache-dir to reduce image size
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
 
+# Create non-root user for security
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
 # Expose port
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8000/ || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
 
-# Run the application
-CMD ["sh", "-c", "uvicorn main:app --host ${UVICORN_HOST} --port ${UVICORN_PORT} --workers ${UVICORN_WORKERS}"]
+# Start the application with uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
