@@ -18,6 +18,7 @@ RUN set -eux; \
     build-essential \
     gcc \
     g++ \
+    curl \
     libgomp1 \
     libglib2.0-0 \
     libsm6 \
@@ -28,7 +29,7 @@ RUN set -eux; \
     echo "apt install failed, trying apt-get update && apt-get install --fix-missing"; \
     apt-get update -o Acquire::Retries=3; \
     apt-get install -y --no-install-recommends --fix-missing \
-      build-essential gcc g++ libgomp1 libglib2.0-0 libsm6 libxext6 libxrender1 libgl1-mesa-glx; \
+      build-essential gcc g++ curl libgomp1 libglib2.0-0 libsm6 libxext6 libxrender1 libgl1-mesa-glx; \
   ); \
   rm -rf /var/lib/apt/lists/* /etc/apt/apt.conf.d/80-retries
 
@@ -46,8 +47,8 @@ RUN mkdir -p models
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
 
 # Run the application
 CMD ["sh", "-c", "uvicorn main:app --host ${UVICORN_HOST} --port ${UVICORN_PORT} --workers ${UVICORN_WORKERS}"]
