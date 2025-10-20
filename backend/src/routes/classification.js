@@ -7,7 +7,10 @@ import {
     getUserStats,
     deleteClassification,
     checkInferenceHealth,
-    getAvailableModels
+    getAvailableModels,
+    createHistoryEntry,
+    updateHistoryNotes,
+    exportHistory,
 } from '../controllers/classification.js';
 
 const router = Router();
@@ -28,6 +31,11 @@ router.post('/classify', upload.single('image'), classifyImage);
  * @query   { email: string, page?: number, limit?: number }
  */
 router.get('/history', getUserHistory);
+router.post('/history', createHistoryEntry);
+router.get('/history/export', exportHistory);
+router.get('/history/:id', getClassificationById);
+router.put('/history/:id', updateHistoryNotes);
+router.delete('/history/:id', deleteClassification);
 
 /**
  * @route   GET /api/classification/:id
