@@ -37,7 +37,7 @@ class ModelInference:
             "bean": {
                 "path": "models/bean_model.onnx",
                 "input_size": (224, 224),
-                "classes": ["angular_leaf_spot", "bean_rust", "healthy"],
+                "classes": ["Healthy", "Bean Rust", "Angular Leaf Spot"],
             },
             "maize": {
                 "path": "models/maize_model.onnx",

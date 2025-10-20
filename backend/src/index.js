@@ -27,28 +27,16 @@ if (process.env.NODE_ENV === 'production') {
   app.set("trust proxy", 1); // Trust first proxy
 }
 
-const defaultOrigins = [
-  process.env.CLIENT_URL,
-  "http://localhost:3000",
-  "http://localhost:5173",
-  "https://agrivai.abenable.tech",
-  "https://www.agrivai.abenable.tech",
-].filter(Boolean);
-
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",").map((url) => url.trim()).filter(Boolean)
-  : defaultOrigins;
-
 // Enable Cross-Origin Resource Sharing (CORS)
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: process.env.CLIENT_URL || "https://agrivai.abenable.tech",
     credentials: true,
   })
 );
 
 // Handle preflight requests
-app.options("*", cors({ origin: allowedOrigins, credentials: true }));
+app.options(new RegExp(".*"), cors({ origin: process.env.CLIENT_URL || "https://agrivai.abenable.tech", credentials: true }));
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());

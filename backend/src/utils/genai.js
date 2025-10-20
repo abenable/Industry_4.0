@@ -1,5 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import logger from './logger.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 /**
  * GenAI Service for getting AI-powered insights using Gemini 2.5 Flash

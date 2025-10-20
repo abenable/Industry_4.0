@@ -1,6 +1,9 @@
 import axios from 'axios';
 import FormData from 'form-data';
 import logger from './logger.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 /**
  * Client for communicating with the AI Inference API
