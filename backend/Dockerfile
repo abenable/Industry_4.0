@@ -25,6 +25,7 @@ RUN npm ci
 COPY . .
 
 # Generate Prisma client
+RUN npx prisma migrate deploy
 RUN npx prisma generate
 
 # Create logs directory and set permissions
